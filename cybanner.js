@@ -10,9 +10,9 @@
 			$this.speed=parseInt(opts.speed);
 			$this.i=0;
 			hand=0;
-			$this.on('touchstart',function(e){$this.trigger('cy.pause');touchstart(e,$this);});
+			$this.on('touchstart',function(e){touchstart(e,$this);});
 			$this.on('touchmove',function(e){e.preventDefault();touchmove(e,$this);});
-			$this.on('touchend',function(e){touchend(e,$this);$this.trigger('cy.start');});
+			$this.on('touchend',function(e){touchend(e,$this);});
 			$this.on('cy.move',function(e,num){
 				var c=0;
 				var dec=$this.dec;
@@ -66,17 +66,17 @@
 	$.fn.cybanner.dufaults={dec:'left',speed:400,interval:3000};
 	function init($banner)
 	{	
+		if (document.createElement('canvas').getContext != undefined){
+			$banner.h5=true;
+		}
+		$banner.map={"top":-1,"right":1,"bottom":1,"left":-1};
 		scale($banner);
 		wrap($banner);
-		
-		if (document.createElement('canvas').getContext != undefined){
-			//use html5 animate
-		}
 	}
 	function scale($banner)
 	{
 		var width,height;
-		width=$banner.width();console.log(width)
+		width=$banner.width();
 		$banner.items.each(function(x){
 			var item=$(this);
 			if (this.nodeType&&this.nodeType==1){
@@ -108,65 +108,58 @@
 	}
 	function wrap($banner)
 	{
-		var i=0;
-		var width,height;
-		$banner.items.each(function(){
-			$(this).wrap('<div style="position:absolute;left:0px;top;0px;display:block;" index="'+i+'"></div>');
-			i++;
-		});
-		$banner.itemsWrap=$banner.children();
-		$banner.itemsWrap.css('width',$banner.width());
-		width=$banner.width();
-		height=$banner.itemsWrap.eq(0).height();
-		$banner.css({'position':'absolute','width':width,'height':height});
-		$banner.wrap('<div style="position:relative;width:'+width+'px;height:'+height+'px;overflow:hidden;"></div>');
-		$banner.map={"top":-1,"right":1,"bottom":1,"left":-1};
-		$banner.itemsWrap.hide();
-		$banner.itemsWrap.eq(0).css('display','block');
-	}
-	function now(o)
-	{
-		return o.itemsWrap.eq(o.i);
-	}
-	function next(o,c)
-	{
-		var e=null;
-		var i=o.i;
-		var l=o.itemsWrap.length;
+		var width,height,i,ctrlstr;
+		i=0;
+		if ($banner.h5){
+			$banner.items.each(function(){
+				$(this).wrap('<div style="position:static;display:table-cell;padding:0px;margin:0px;" index="'+i+'"></div>');
+				i++;
+			});
+			$banner.itemsWrap=$banner.children();
+			$banner.itemsWrap.css('width',$banner.width());
+			width=$banner.width();
+			height=$banner.itemsWrap.eq(0).height();
+			$banner.css({'position':'absolute','width':width*$banner.itemsWrap.length,'height':height*$banner.itemsWrap.length});
+			$banner.wrap('<div class="cybanner-wrap" style="position:relative;width:'+width+'px;height:'+height+'px;overflow:hidden;"></div>');
+		}else{
+			$banner.items.each(function(){
+				$(this).wrap('<div style="position:absolute;left:0px;top;0px;display:block;" index="'+i+'"></div>');
+				i++;
+			});
+			$banner.itemsWrap=$banner.children();
+			$banner.itemsWrap.css('width',$banner.width());
+			width=$banner.width();
+			height=$banner.itemsWrap.eq(0).height();
+			$banner.css({'position':'absolute','width':width,'height':height});
+			$banner.wrap('<div class="cybanner-wrap" style="position:relative;width:'+width+'px;height:'+height+'px;overflow:hidden;"></div>');
+			$banner.itemsWrap.hide();
+			$banner.itemsWrap.eq(0).css('display','block');
+		}
+		if ($banner.style==undefined){
+			$('head').append(
+			'<style>\
+				.cybanner{}\
+				.cybanner-wrap ul{position:absolute;width:20%;height:4px;margin-left:40%;left:0px;bottom:0px;padding:0px}\
+				.cybanner-wrap ul li{width:'+98/$banner.itemsWrap.length+'%;background:#999999;float:left;height:100%;list-style:none;padding:0px ;margin-right:1px;}\
+				.cybanner-wrap ul li.on{background:#333333;}\
+			</style>');
+			
+		}
+		if ($banner.ctrl==undefined){
+			ctrlstr="";
+			for(var x=0;x<$banner.itemsWrap.length;x++){
+				ctrlstr+="<li></li>";
+			}
+			ctrlstr='<ul>'+ctrlstr+'</ul>';
+			$banner.ctrl=$banner.parent().append(ctrlstr).find('li');
+			$banner.ctrl.eq(0).addClass('on');
+			$banner.ctrl.on('click',function(){
+				var self=this;
+				move($banner,$banner.ctrl.index(self));
+			});
+		}
 		
-		if (o.dec=="left"||o.dec=="right")
-		{
-			o.step=o.itemsWrap.eq(0).width();
-		}
-		else
-		{
-			o.step=o.itemsWrap.eq(0).height();
-		}
-		if (c>=l)
-		{
-			c=c-l;
-		}
-		else if (c<0)
-		{
-			c=l-1;
-		}
-		
-		e=o.itemsWrap.eq(c);
-		if (o.dec=="left"||o.dec=="top")
-		{
-			e.css(o.dec,o.step+'px');
-		}
-		else if(o.dec=="right")
-		{
-			e.css("left",-o.step+'px');
-		}
-		else if(o.dec=="bottom")
-		{
-			e.css("top",-o.step+'px');
-		}
-		e.css('display','block');
-		return e;
-	}
+	};
 	function touchstart(e,o){
 		
 		o.i=parseInt($(e.target).parents('div[index]').attr('index'));
@@ -191,7 +184,7 @@
         var y0=o.t0[1];
         var d=x-x0;
         var h=y-y0;
-        if (Math.abs(d)>=Math.abs(h))
+        if (o.dec=="right"||o.dec=="left")
         {
         	if (d>0)
         	{
@@ -223,25 +216,61 @@
 			}
 		}
 	};
-	function move(o,c){
-		var x=parseInt(o.css('left'));
-		var y=parseInt(o.css('top'));
-		var n=next(o,c);
-		var t=now(o);
-		var opts={};
-		var dec="";
-		dec=o.dec=="right"?"left":o.dec;
+	function move($banner,index){
+		var x,y,nextItem,currentItem,opts,dec,css3;
+		opts={};
+		dec="";
+		dec=$banner.dec=="right"?"left":$banner.dec;
 		dec=dec=="bottom"?"top":dec;
-		opts[dec]=o.map[o.dec]*o.step;
-		o.animate(opts,o.speed,function(){
+		css3={};
+		currentItem=$banner.itemsWrap.eq($banner.i);
+		$banner.trigger('cy.pause');
+		if ($banner.map[$banner.dec]>0){
+			$banner.i=index;
+			if ($banner.i<0){
+				$banner.i=$banner.itemsWrap.length-1;
+			}
+		}else{
+			$banner.i=index;
+			if ($banner.i>=$banner.itemsWrap.length){
+				$banner.i=0;
+			}
+		}
+		if ($banner.h5){
+			opts['left']=$banner.dec=="left"||$banner.dec=="right"?-$banner.step*$banner.i:0;
+			opts['top']=$banner.dec=="top"||$banner.dec=="bottom"?-$banner.step*$banner.i:0;
+			if (opts['left']>0){
+				opts['left']=-$banner.step*($banner.itemsWrap.length-1);
+			}
+			if (opts['top']>0){
+				opts['top']=-$banner.step*($banner.itemsWrap.length-1);
+			}
+			css3['transform']='translate('+opts['left']+'px,'+opts['top']+'px)';
+			css3['transition-duration']=$banner.speed/1000+"s";
+			//-webkit-,-moz-,-o-.....
+			$banner.css(css3);
+		}else{
+			opts[dec]=-$banner.map[$banner.dec]*$banner.step;
+			x=parseInt($banner.css('left'));
+			y=parseInt($banner.css('top'));
+			nextItem=$banner.itemsWrap.eq($banner.i);
+			nextItem.css($.extend({},opts,{'display':'block'}));
+			opts[dec]=-opts[dec];
+			$banner.animate(opts,$banner.speed,function(){
 				var clear={};
 				clear[dec]='0px';
-				t.css('display','none');
-				n.css(clear);
-				o.css(clear);
+				currentItem.css('display','none');
+				nextItem.css(clear);
+				$banner.css(clear);
 			});
-		o.i=parseInt(n.attr('index'));
+		}
+		$banner.trigger('cy.start');
+		ctrlView($banner.ctrl,$banner.i);
 	};
+	function ctrlView($ctrl,index){
+		$ctrl.removeClass('on');
+		$ctrl.eq(index).addClass('on');
+	}
 
 })(jQuery);
 
